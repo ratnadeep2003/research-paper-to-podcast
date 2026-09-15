@@ -1,0 +1,84 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Session {
+  id          String           @id @default(cuid())
+  title       String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  papers      Paper[]
+  podcast     PodcastEpisode?
+  messages    Message[]
+}
+
+model Paper {
+  id             String    @id @default(cuid())
+  sessionId      String
+  session        Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  title          String
+  authors        String    @default("[]") // JSON array string of authors
+  year           Int?
+  doi            String?
+  url            String?
+  abstract       String?
+  fullText       String?
+  level          Int       @default(1) // 1 = Root, 2 = Direct Citation, 3 = Grandchild Citation
+  parentId       String?
+  relevanceScore Float?
+  keyTakeaway    String?
+  createdAt      DateTime  @default(now())
+
+  // Self-relation for citation hierarchy
+  parent         Paper?    @relation("PaperCitations", fields: [parentId], references: [id], onDelete: Cascade)
+  citations      Paper[]   @relation("PaperCitations")
+  segments       PodcastSegment[]
+}
+
+model PodcastEpisode {
+  id           String           @id @default(cuid())
+  sessionId    String           @unique
+  session      Session          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  title        String           @default("Research Breakdown")
+  status       String           @default("PENDING") // PENDING, GENERATING, READY, FAILED
+  fullAudioUrl String?
+  duration     Float?
+  summary      String?
+  segments     PodcastSegment[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model PodcastSegment {
+  id           String         @id @default(cuid())
+  episodeId    String
+  episode      PodcastEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  orderIndex   Int
+  speaker      String         // "Host_Alex" | "Host_Maya"
+  speakerRole  String?        // "Lead Analyst" | "Inquisitive Host"
+  text         String
+  audioUrl     String?
+  durationSec  Float?
+  paperId      String?
+  paper        Paper?         @relation(fields: [paperId], references: [id], onDelete: SetNull)
+  createdAt    DateTime       @default(now())
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  sessionId       String
+  session         Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role            String   // "user" | "assistant" | "system"
+  content         String
+  isInterrupt     Boolean  @default(false)
+  pausedAtSec     Float?
+  pausedSegmentId String?
+  resumed         Boolean  @default(false)
+  audioUrl        String?
+  createdAt       DateTime @default(now())
+}

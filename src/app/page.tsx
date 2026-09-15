@@ -1,69 +1,136 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Radio,
+  Sparkles,
+  BookOpen,
+  Headphones,
+  MessageSquare,
+  ArrowRight,
+  Plus,
+} from 'lucide-react';
+
+export default function HomePage() {
+  const router = useRouter();
+  const [isCreating, setIsCreating] = useState(false);
+
+  /** Create a new research session and navigate to it */
+  const handleCreateSession = async () => {
+    if (isCreating) return;
+    setIsCreating(true);
+
+    try {
+      const res = await fetch('/api/sessions', { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to create session');
+      const data = await res.json();
+      router.push(`/session/${data.id}`);
+    } catch (err) {
+      console.error(err);
+      setIsCreating(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="min-h-screen bg-[#0a0b10] text-white flex flex-col items-center justify-center px-4">
+      {/* ── Hero Section ─────────────────────────────────────────────── */}
+      <section className="max-w-4xl w-full text-center pt-24 pb-16 flex flex-col items-center gap-6">
+        {/* Brand chip */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-sm text-indigo-300">
+          <Radio className="h-4 w-4" />
+          <span>Research → Podcast, reimagined</span>
+        </div>
+
+        {/* App name */}
+        <h1 className="text-6xl sm:text-7xl font-extrabold tracking-tight">
+          <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-500 bg-clip-text text-transparent">
+            ResearchCast
+          </span>
+        </h1>
+
+        {/* Tagline */}
+        <p className="text-lg sm:text-xl text-zinc-300 max-w-2xl leading-relaxed">
+          Transform any research paper into an interactive AI podcast — with{' '}
+          <span className="text-indigo-400 font-semibold">Level-3 citation depth</span>.
+        </p>
+
+        {/* Subtitle */}
+        <p className="text-sm sm:text-base text-zinc-500 max-w-2xl leading-relaxed">
+          Upload a paper or search by title. We crawl 3 levels of citations,
+          synthesize the knowledge graph, and generate a 2-host podcast you can
+          interrupt with questions.
+        </p>
+
+        {/* CTA Button */}
+        <button
+          onClick={handleCreateSession}
+          disabled={isCreating}
+          className="mt-4 inline-flex items-center gap-2.5 rounded-xl bg-indigo-600 px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-indigo-600/25 transition-all hover:bg-indigo-500 hover:shadow-indigo-500/30 hover:scale-[1.03] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {isCreating ? (
+            <>
+              <Sparkles className="h-5 w-5 animate-spin" />
+              Creating…
+            </>
+          ) : (
+            <>
+              <Plus className="h-5 w-5" />
+              Create New Research Notebook
+              <ArrowRight className="h-5 w-5" />
+            </>
+          )}
+        </button>
+      </section>
+
+      {/* ── Feature Cards ────────────────────────────────────────────── */}
+      <section className="max-w-4xl w-full grid grid-cols-1 sm:grid-cols-3 gap-5 pb-24">
+        <FeatureCard
+          icon={<BookOpen className="h-6 w-6 text-indigo-400" />}
+          emoji="🔬"
+          title="Level-3 Citation Crawling"
+          description="We don't just read your paper. We traverse its citations, and their citations, building a 3-level knowledge tree."
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        <FeatureCard
+          icon={<Headphones className="h-6 w-6 text-violet-400" />}
+          emoji="🎧"
+          title="Interactive Podcast"
+          description="Two AI hosts break down the entire research lineage in a conversational format. Pause anytime and ask questions."
+        />
+        <FeatureCard
+          icon={<MessageSquare className="h-6 w-6 text-purple-400" />}
+          emoji="💬"
+          title="Interrupt & Resume"
+          description="Ask questions mid-podcast. The AI answers in context, confirms your understanding, then seamlessly resumes."
+        />
+      </section>
+
+      {/* ── Footer ───────────────────────────────────────────────────── */}
+      <footer className="w-full border-t border-zinc-800 py-6 text-center text-sm text-zinc-600">
+        Built with Next.js, Prisma, and Google Gemini &bull; v1
+      </footer>
+    </main>
+  );
+}
+
+/* ─── Feature Card ─────────────────────────────────────────────────────── */
+
+interface FeatureCardProps {
+  icon: React.ReactNode;
+  emoji: string;
+  title: string;
+  description: string;
+}
+
+function FeatureCard({ icon, emoji, title, description }: FeatureCardProps) {
+  return (
+    <div className="group rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 transition-all hover:border-indigo-500/40 hover:bg-zinc-900">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="text-2xl">{emoji}</span>
+        {icon}
+      </div>
+      <h3 className="mb-2 text-lg font-semibold text-zinc-100">{title}</h3>
+      <p className="text-sm leading-relaxed text-zinc-400">{description}</p>
     </div>
   );
 }
