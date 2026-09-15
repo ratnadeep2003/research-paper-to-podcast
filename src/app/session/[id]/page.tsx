@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 
 import { SourcesPanel, PaperItem } from "@/components/notebook/SourcesPanel";
 import { ChatTranscript } from "@/components/notebook/ChatTranscript";
-import { StudioPanel } from "@/components/notebook/StudioPanel";
+import StudioPanel from "@/components/notebook/StudioPanel";
 import {
   PodcastSegmentData,
   MessageData,
@@ -121,18 +121,20 @@ export default function SessionPage() {
       const res = await fetch(`/api/sessions/${id}`);
       if (!res.ok) throw new Error("Failed to fetch session");
 
-      const data: SessionData = await res.json();
+      const json = await res.json();
+if (!json.success) throw new Error(json.error ?? "Failed to fetch session");
+const data: SessionData = json.data;
 
-      setPapers(flattenCitationNodes(data.papers ?? []));
-      setMessages(data.messages ?? []);
+setPapers(flattenCitationNodes(data.papers ?? []));
+setMessages(data.messages ?? []);
 
-      if (data.podcast) {
-        setEpisode(data.podcast);
-        setSegments(data.podcast.segments ?? []);
-      } else {
-        setEpisode(null);
-        setSegments([]);
-      }
+if (data.podcast) {
+  setEpisode(data.podcast);
+  setSegments(data.podcast.segments ?? []);
+} else {
+  setEpisode(null);
+  setSegments([]);
+}
     } catch (err) {
       console.error("Error fetching session:", err);
     } finally {

@@ -25,7 +25,7 @@ export default function HomePage() {
       const res = await fetch('/api/sessions', { method: 'POST' });
       if (!res.ok) throw new Error('Failed to create session');
       const data = await res.json();
-      router.push(`/session/${data.id}`);
+      router.push(`/session/${data.data.id}`);
     } catch (err) {
       console.error(err);
       setIsCreating(false);
