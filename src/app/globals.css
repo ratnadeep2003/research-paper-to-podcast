@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0b10;
-  --foreground: #e4e4e7;
+  --background: #FAF8F5;
+  --foreground: #24211D;
+  --card: #FFFFFF;
+  --card-foreground: #24211D;
+  --muted: #F2EFE9;
+  --muted-foreground: #7E776C;
+  --border: #E6E0D5;
+  --accent: #BA5C38;
+  --accent-foreground: #FFFFFF;
 }
 
 @theme inline {
@@ -13,12 +20,12 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+  background-color: #FAF8F5;
+  color: #24211D;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
 }
 
-/* Custom scrollbar for dark theme */
+/* Elegant light/warm scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -29,44 +36,29 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2e313b;
-  border-radius: 3px;
+  background: #DDD7CB;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #44485a;
+  background: #C4BCAF;
 }
 
-/* Smooth transitions */
-* {
-  scroll-behavior: smooth;
+/* Animations */
+@keyframes pulseSubtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.03); }
 }
 
-/* Animation utilities */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+.animate-pulse-subtle {
+  animation: pulseSubtle 2.5s ease-in-out infinite;
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
+@keyframes waveBar {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
 }
 
-@keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-16px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-.animate-slide-in-left {
-  animation: slideInLeft 0.3s ease-out forwards;
-}
-
-/* Podcast speaking indicator glow */
-@keyframes speakingGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
-}
-
-.animate-speaking-glow {
-  animation: speakingGlow 1.5s ease-in-out infinite;
+.animate-wave-bar {
+  animation: waveBar 1.2s ease-in-out infinite;
 }

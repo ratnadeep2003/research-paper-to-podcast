@@ -14,27 +14,12 @@ import {
   MessageSquare,
   FileText,
 } from 'lucide-react';
+import { PodcastEpisodeData, PodcastSegmentData } from '@/types';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface StudioPanelProps {
+export interface StudioPanelProps {
   sessionId: string;
-  episode: {
-    id: string;
-    title: string;
-    status: string;
-    summary?: string | null;
-    segments: Array<{
-      id: string;
-      orderIndex: number;
-      speaker: string;
-      speakerRole?: string;
-      text: string;
-      durationSec?: number | null;
-    }>;
-  } | null;
+  episode: PodcastEpisodeData | null;
+  segments?: PodcastSegmentData[];
   isPlaying: boolean;
   activeSegmentIndex: number | null;
   onGeneratePodcast: () => Promise<void>;
@@ -44,364 +29,21 @@ interface StudioPanelProps {
   onPlaySegment: (index: number) => void;
   onPlayEntireConversationTTS: () => void;
   isGenerating: boolean;
-  papers: Array<{ id: string; title: string; level: number }>;
+  papers?: Array<{ id: string; title: string; level: number }>;
 }
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
 const PLAYBACK_SPEEDS = [0.75, 1, 1.25, 1.5, 2] as const;
 
-/** Map speaker names to accent colours for the timeline & avatars. */
-const SPEAKER_COLORS: Record<string, { bg: string; ring: string; text: string; dot: string }> = {
-  Alex: {
-    bg: 'bg-indigo-500/20',
-    ring: 'ring-indigo-500/60',
-    text: 'text-indigo-400',
-    dot: 'bg-indigo-500',
-  },
-  Maya: {
-    bg: 'bg-emerald-500/20',
-    ring: 'ring-emerald-500/60',
-    text: 'text-emerald-400',
-    dot: 'bg-emerald-500',
-  },
-};
-
-const DEFAULT_SPEAKER_COLOR = {
-  bg: 'bg-zinc-500/20',
-  ring: 'ring-zinc-500/60',
-  text: 'text-zinc-400',
-  dot: 'bg-zinc-500',
-};
-
-function speakerColor(speaker: string) {
-  return SPEAKER_COLORS[speaker] ?? DEFAULT_SPEAKER_COLOR;
-}
-
-/** Get initials from a speaker name (e.g. "Alex" → "A"). */
-function initials(name: string) {
-  return name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-/** Format seconds into mm:ss. */
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.round(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-/** Prominent header strip. */
-function Header() {
-  return (
-    <div className="flex items-center gap-3 px-5 py-4 border-b border-[#22242a]">
-      <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-500/15">
-        <Headphones className="w-5 h-5 text-indigo-400" />
-      </div>
-      <div>
-        <h2 className="text-base font-semibold text-zinc-100 leading-tight">Audio Studio</h2>
-        <p className="text-xs text-zinc-500">Generate &amp; listen to podcast episodes</p>
-      </div>
-    </div>
-  );
-}
-
-/** CTA card shown when no episode exists yet. */
-function GenerateCTA({
-  onGenerate,
-  isGenerating,
-}: {
-  onGenerate: () => Promise<void>;
-  isGenerating: boolean;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 text-center">
-      {/* Decorative icon cluster */}
-      <div className="relative mb-6">
-        <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-indigo-500/10 ring-1 ring-indigo-500/20">
-          <Radio className="w-9 h-9 text-indigo-400" />
-        </div>
-        <div className="absolute -top-1 -right-1 flex items-center justify-center w-7 h-7 rounded-full bg-[#15171c] ring-1 ring-[#22242a]">
-          <Sparkles className="w-4 h-4 text-amber-400" />
-        </div>
-      </div>
-
-      <h3 className="text-lg font-semibold text-zinc-100 mb-2">Create Your Podcast</h3>
-      <p className="text-sm text-zinc-400 max-w-xs mb-8 leading-relaxed">
-        Transform your research papers into an engaging two-host conversation powered by AI.
-      </p>
-
-      <button
-        onClick={onGenerate}
-        disabled={isGenerating}
-        className="group relative inline-flex items-center gap-2.5 px-7 py-3 rounded-xl
-                   bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
-                   text-white font-medium text-sm shadow-lg shadow-indigo-500/20
-                   transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-      >
-        {isGenerating ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin" />
-            Generating…
-          </>
-        ) : (
-          <>
-            <Sparkles className="w-5 h-5 transition-transform group-hover:scale-110" />
-            Generate Interactive Podcast
-          </>
-        )}
-      </button>
-    </div>
-  );
-}
-
-/** Loading / generating state. */
-function GeneratingState() {
-  return (
-    <div className="flex flex-col items-center justify-center flex-1 px-6 py-16 text-center gap-5">
-      <div className="relative">
-        <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/10">
-          <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-        </div>
-        {/* Pulsing ring */}
-        <span className="absolute inset-0 rounded-2xl animate-ping bg-indigo-500/10" />
-      </div>
-      <div>
-        <h3 className="text-base font-semibold text-zinc-100 mb-1">Generating Episode…</h3>
-        <p className="text-sm text-zinc-500 max-w-xs leading-relaxed">
-          AI is crafting an engaging conversation from your papers. This may take a minute.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/** Play All / Pause toggle button. */
-function PlayPauseButton({
-  isPlaying,
-  onPlayAll,
-  onPause,
-  onResume,
-  hasStarted,
-}: {
-  isPlaying: boolean;
-  onPlayAll: () => void;
-  onPause: () => void;
-  onResume: () => void;
-  hasStarted: boolean;
-}) {
-  const handleClick = () => {
-    if (isPlaying) {
-      onPause();
-    } else if (hasStarted) {
-      onResume();
-    } else {
-      onPlayAll();
-    }
-  };
-
-  return (
-    <button
-      onClick={handleClick}
-      className="inline-flex items-center gap-2.5 px-6 py-2.5 rounded-xl
-                 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
-                 text-white font-medium text-sm shadow-lg shadow-indigo-500/20
-                 transition-all duration-200"
-    >
-      {isPlaying ? (
-        <>
-          <Pause className="w-5 h-5" />
-          Pause
-        </>
-      ) : (
-        <>
-          <Play className="w-5 h-5" />
-          {hasStarted ? 'Resume' : 'Play All'}
-        </>
-      )}
-    </button>
-  );
-}
-
-/** Playback speed selector pills. */
-function SpeedSelector({
-  speed,
-  onSelect,
-}: {
-  speed: number;
-  onSelect: (s: number) => void;
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {PLAYBACK_SPEEDS.map((s) => (
-        <button
-          key={s}
-          onClick={() => onSelect(s)}
-          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors duration-150
-            ${
-              speed === s
-                ? 'bg-indigo-500/25 text-indigo-300 ring-1 ring-indigo-500/40'
-                : 'bg-[#1c1e24] text-zinc-500 hover:text-zinc-300 hover:bg-[#22242a]'
-            }`}
-        >
-          {s}x
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** Visual timeline bar – each segment is a coloured block. */
-function SegmentTimeline({
-  segments,
-  activeIndex,
-  onSelect,
-}: {
-  segments: StudioPanelProps['episode'] extends infer E
-    ? E extends { segments: infer S }
-      ? S
-      : never
-    : never;
-  activeIndex: number | null;
-  onSelect: (i: number) => void;
-}) {
-  return (
-    <div className="flex gap-0.5 w-full h-2 rounded-full overflow-hidden bg-[#1c1e24]">
-      {segments.map((seg, i) => {
-        const color = speakerColor(seg.speaker);
-        const isActive = activeIndex === i;
-        return (
-          <button
-            key={seg.id}
-            title={`${seg.speaker} – Segment ${i + 1}`}
-            onClick={() => onSelect(i)}
-            className={`flex-1 min-w-[4px] rounded-sm transition-all duration-200 ${
-              isActive
-                ? `${color.dot} ring-2 ${color.ring} scale-y-150`
-                : `${color.dot} opacity-40 hover:opacity-70`
-            }`}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-/** Individual segment row in the list. */
-function SegmentRow({
-  segment,
-  index,
-  isActive,
-  onClick,
-}: {
-  segment: {
-    id: string;
-    speaker: string;
-    speakerRole?: string;
-    text: string;
-    durationSec?: number | null;
-  };
-  index: number;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  const color = speakerColor(segment.speaker);
-  const preview =
-    segment.text.length > 60 ? segment.text.slice(0, 60).trimEnd() + '…' : segment.text;
-
-  return (
-    <button
-      onClick={onClick}
-      className={`group flex items-start gap-3 w-full text-left px-3 py-2.5 rounded-lg transition-colors duration-150
-        ${
-          isActive
-            ? 'bg-indigo-500/10 ring-1 ring-indigo-500/25'
-            : 'hover:bg-[#1c1e24]'
-        }`}
-    >
-      {/* Speaker avatar */}
-      <div
-        className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold ${color.bg} ${color.text} ring-1 ${color.ring}`}
-      >
-        {initials(segment.speaker)}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className={`text-xs font-semibold ${color.text}`}>{segment.speaker}</span>
-          {segment.speakerRole && (
-            <span className="text-[10px] text-zinc-600 uppercase tracking-wide">
-              {segment.speakerRole}
-            </span>
-          )}
-          {segment.durationSec != null && (
-            <span className="ml-auto text-[10px] text-zinc-600 tabular-nums">
-              {formatTime(segment.durationSec)}
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-zinc-400 leading-relaxed mt-0.5 truncate">{preview}</p>
-      </div>
-
-      {/* Play indicator / icon */}
-      {isActive ? (
-        <Volume2 className="flex-shrink-0 w-4 h-4 text-indigo-400 mt-1 animate-pulse" />
-      ) : (
-        <SkipForward className="flex-shrink-0 w-4 h-4 text-zinc-700 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-      )}
-    </button>
-  );
-}
-
-/** Stats summary card at the bottom. */
-function StatsCard({
-  totalSegments,
-  estimatedDuration,
-  papersCount,
-}: {
-  totalSegments: number;
-  estimatedDuration: string;
-  papersCount: number;
-}) {
-  const stats = [
-    { icon: MessageSquare, label: 'Segments', value: totalSegments },
-    { icon: Clock, label: 'Duration', value: estimatedDuration },
-    { icon: FileText, label: 'Papers', value: papersCount },
-  ];
-
-  return (
-    <div className="grid grid-cols-3 gap-3">
-      {stats.map(({ icon: Icon, label, value }) => (
-        <div
-          key={label}
-          className="flex flex-col items-center gap-1 py-3 rounded-xl bg-[#1c1e24] ring-1 ring-[#22242a]"
-        >
-          <Icon className="w-4 h-4 text-zinc-500" />
-          <span className="text-sm font-semibold text-zinc-200 tabular-nums">{value}</span>
-          <span className="text-[10px] text-zinc-500 uppercase tracking-wider">{label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
-
-export default function StudioPanel({
+export function StudioPanel({
   sessionId,
   episode,
+  segments: propSegments,
   isPlaying,
   activeSegmentIndex,
   onGeneratePodcast,
@@ -411,112 +53,249 @@ export default function StudioPanel({
   onPlaySegment,
   onPlayEntireConversationTTS,
   isGenerating,
-  papers,
+  papers = [],
 }: StudioPanelProps) {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
 
-  // Determine the current state of the panel
-  const isEpisodeReady = episode !== null && episode.status !== 'generating';
+  const segments = episode?.segments || propSegments || [];
+  const isEpisodeReady = episode !== null && episode.status !== 'GENERATING';
   const isEpisodeGenerating =
-    isGenerating || (episode !== null && episode.status === 'generating');
+    isGenerating || (episode !== null && episode.status === 'GENERATING');
 
-  // Compute estimated duration from segments
   const estimatedDurationSec =
-    episode?.segments.reduce((sum, s) => sum + (s.durationSec ?? 0), 0) ?? 0;
+    segments.reduce((sum, s) => sum + (s.durationSec ?? 0), 0) || 0;
   const estimatedDuration =
     estimatedDurationSec > 0 ? formatTime(estimatedDurationSec) : '—';
 
-  // Whether the user has already started playback at least once
   const hasStartedPlayback = activeSegmentIndex !== null;
 
   return (
-    <div className="flex flex-col h-full bg-[#15171c] text-zinc-200">
-      <Header />
+    <div className="w-80 flex flex-col h-full bg-[#F6F3EB] border-l border-[#E5DFD3] text-[#24211D] select-none">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[#E5DFD3] bg-[#F7F4ED]">
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#F9ECE5] border border-[#E8CEBE]">
+          <Headphones className="w-4 h-4 text-[#BA5C38]" />
+        </div>
+        <div>
+          <h2 className="text-xs font-semibold text-[#24211D] leading-tight">Audio Studio</h2>
+          <p className="text-[11px] text-[#7A7469]">Synthesize &amp; listen to podcast</p>
+        </div>
+      </div>
 
-      {/* ── No episode yet ─────────────────────────────────────────── */}
+      {/* No episode yet */}
       {!episode && !isEpisodeGenerating && (
-        <GenerateCTA onGenerate={onGeneratePodcast} isGenerating={false} />
+        <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 text-center">
+          <div className="relative mb-5">
+            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-[#F0EBE1] border border-[#E0D8CB]">
+              <Radio className="w-8 h-8 text-[#BA5C38]" />
+            </div>
+            <div className="absolute -top-1 -right-1 flex items-center justify-center w-6 h-6 rounded-full bg-white border border-[#DDD5C5] shadow-2xs">
+              <Sparkles className="w-3.5 h-3.5 text-[#B87A38]" />
+            </div>
+          </div>
+
+          <h3 className="text-sm font-semibold text-[#24211D] mb-1.5">Interactive Podcast</h3>
+          <p className="text-xs text-[#7A7469] max-w-xs mb-6 leading-relaxed">
+            Transform your research paper into a 2-host conversational episode with level-3 citation depth.
+          </p>
+
+          <button
+            onClick={onGeneratePodcast}
+            disabled={isGenerating}
+            className="group relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl
+                       bg-[#BA5C38] hover:bg-[#A34B28] active:bg-[#8F3E1E]
+                       text-white font-medium text-xs shadow-xs
+                       transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating Script…
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 transition-transform group-hover:scale-110" />
+                Generate Interactive Podcast
+              </>
+            )}
+          </button>
+        </div>
       )}
 
-      {/* ── Generating ─────────────────────────────────────────────── */}
-      {isEpisodeGenerating && !isEpisodeReady && <GeneratingState />}
+      {/* Generating state */}
+      {isEpisodeGenerating && !isEpisodeReady && (
+        <div className="flex flex-col items-center justify-center flex-1 px-6 py-16 text-center gap-4">
+          <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-[#F9ECE5] border border-[#E8CEBE]">
+            <Loader2 className="w-7 h-7 text-[#BA5C38] animate-spin" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-[#24211D] mb-1">Synthesizing Episode…</h3>
+            <p className="text-xs text-[#7A7469] max-w-xs leading-relaxed">
+              Analyzing the 3-level citation tree and writing the 2-host script dialogue.
+            </p>
+          </div>
+        </div>
+      )}
 
-      {/* ── Episode ready ──────────────────────────────────────────── */}
+      {/* Episode Ready */}
       {isEpisodeReady && (
         <div className="flex flex-col flex-1 overflow-y-auto">
-          {/* Episode title & summary */}
-          <div className="px-5 pt-5 pb-3 space-y-2">
-            <h3 className="text-sm font-semibold text-zinc-100 leading-snug">
+          {/* Episode Info */}
+          <div className="px-5 pt-4 pb-3 space-y-1.5 border-b border-[#ECE7DC] bg-[#FAF8F3]">
+            <h3 className="text-xs font-semibold text-[#24211D] leading-snug line-clamp-2">
               {episode.title}
             </h3>
             {episode.summary && (
-              <p className="text-xs text-zinc-400 leading-relaxed line-clamp-3">
+              <p className="text-[11px] text-[#7A7469] leading-relaxed line-clamp-2">
                 {episode.summary}
               </p>
             )}
           </div>
 
-          {/* Playback controls */}
-          <div className="px-5 pb-4 space-y-4">
-            {/* Play / Pause + Speed */}
+          {/* Controls Bar */}
+          <div className="p-4 space-y-3.5 bg-white border-b border-[#ECE7DC]">
             <div className="flex items-center justify-between gap-3">
-              <PlayPauseButton
-                isPlaying={isPlaying}
-                onPlayAll={onPlayAll}
-                onPause={onPause}
-                onResume={onResume}
-                hasStarted={hasStartedPlayback}
-              />
-              <SpeedSelector speed={playbackSpeed} onSelect={setPlaybackSpeed} />
+              <button
+                onClick={() => {
+                  if (isPlaying) onPause();
+                  else if (hasStartedPlayback) onResume();
+                  else onPlayAll();
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl
+                           bg-[#BA5C38] hover:bg-[#A34B28] text-white font-medium text-xs shadow-xs transition-all cursor-pointer"
+              >
+                {isPlaying ? (
+                  <>
+                    <Pause className="w-4 h-4" /> Pause
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" /> {hasStartedPlayback ? 'Resume' : 'Play All'}
+                  </>
+                )}
+              </button>
+
+              {/* Speed Selector */}
+              <div className="flex items-center gap-1">
+                {PLAYBACK_SPEEDS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setPlaybackSpeed(s)}
+                    className={`px-2 py-1 rounded-md text-[10px] font-medium transition-colors cursor-pointer ${
+                      playbackSpeed === s
+                        ? 'bg-[#EAE4D7] text-[#24211D] font-bold border border-[#DDD5C5]'
+                        : 'bg-[#F5F2EB] text-[#7A7469] hover:text-[#24211D]'
+                    }`}
+                  >
+                    {s}x
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Segment timeline bar */}
-            {episode.segments.length > 0 && (
-              <SegmentTimeline
-                segments={episode.segments}
-                activeIndex={activeSegmentIndex}
-                onSelect={onPlaySegment}
-              />
+            {/* Segment Timeline Blocks */}
+            {segments.length > 0 && (
+              <div className="flex gap-1 w-full h-2 rounded-full overflow-hidden bg-[#ECE7DC]">
+                {segments.map((seg, i) => {
+                  const isAlex = seg.speaker === 'Host_Alex';
+                  const isActive = activeSegmentIndex === i;
+                  return (
+                    <button
+                      key={seg.id || i}
+                      title={`${isAlex ? 'Alex' : 'Maya'} – Turn ${i + 1}`}
+                      onClick={() => onPlaySegment(i)}
+                      className={`flex-1 min-w-[4px] rounded-xs transition-all cursor-pointer ${
+                        isActive
+                          ? isAlex ? 'bg-[#BA5C38] ring-2 ring-[#BA5C38]/40 scale-y-125' : 'bg-[#3D6B5A] ring-2 ring-[#3D6B5A]/40 scale-y-125'
+                          : isAlex ? 'bg-[#BA5C38]/50 hover:bg-[#BA5C38]' : 'bg-[#3D6B5A]/50 hover:bg-[#3D6B5A]'
+                      }`}
+                    />
+                  );
+                })}
+              </div>
             )}
           </div>
 
-          {/* Segment list */}
-          <div className="flex-1 px-3 pb-3 space-y-0.5 overflow-y-auto">
-            <p className="px-2 pt-1 pb-2 text-[10px] font-medium text-zinc-500 uppercase tracking-widest">
-              Segments
+          {/* Segment List */}
+          <div className="flex-1 p-2 space-y-1 overflow-y-auto bg-[#F6F3EB]">
+            <p className="px-2 pt-1 pb-1.5 text-[10px] font-bold text-[#8A8478] uppercase tracking-wider">
+              Dialogue Turns ({segments.length})
             </p>
-            {episode.segments.map((seg, idx) => (
-              <SegmentRow
-                key={seg.id}
-                segment={seg}
-                index={idx}
-                isActive={activeSegmentIndex === idx}
-                onClick={() => onPlaySegment(idx)}
-              />
-            ))}
+            {segments.map((seg, idx) => {
+              const isAlex = seg.speaker === 'Host_Alex';
+              const isActive = activeSegmentIndex === idx;
+              return (
+                <button
+                  key={seg.id || idx}
+                  onClick={() => onPlaySegment(idx)}
+                  className={`w-full text-left p-2.5 rounded-lg transition-all flex items-start gap-2.5 cursor-pointer border ${
+                    isActive
+                      ? 'bg-white border-[#D9C4B2] shadow-xs ring-1 ring-[#BA5C38]/20'
+                      : 'bg-white/70 hover:bg-white border-[#EBE6DC]'
+                  }`}
+                >
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${
+                      isAlex ? 'bg-[#BA5C38]' : 'bg-[#3D6B5A]'
+                    }`}
+                  >
+                    {isAlex ? 'A' : 'M'}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between text-[11px] mb-0.5">
+                      <span className="font-semibold text-[#24211D]">
+                        {isAlex ? 'Alex' : 'Maya'}
+                      </span>
+                      {seg.durationSec && (
+                        <span className="text-[10px] text-[#8A8478] font-mono">
+                          {formatTime(seg.durationSec)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[#524E48] truncate leading-tight">
+                      {seg.text}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Bottom area: TTS button + Stats */}
-          <div className="px-5 py-4 space-y-4 border-t border-[#22242a]">
+          {/* Bottom Area: TTS button & Stats */}
+          <div className="p-4 space-y-3 border-t border-[#E5DFD3] bg-[#F7F4ED]">
             <button
               onClick={onPlayEntireConversationTTS}
-              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl
-                         bg-[#1c1e24] ring-1 ring-[#22242a] hover:ring-indigo-500/30
-                         text-zinc-300 hover:text-zinc-100 text-sm font-medium
-                         transition-all duration-200"
+              className="flex items-center justify-center gap-2 w-full px-3.5 py-2.5 rounded-xl
+                         bg-white border border-[#DDD5C5] hover:border-[#BA5C38]
+                         text-[#24211D] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
             >
-              <Volume2 className="w-4 h-4 text-indigo-400" />
+              <Volume2 className="w-4 h-4 text-[#BA5C38]" />
               Play Entire Conversation (TTS)
             </button>
 
-            <StatsCard
-              totalSegments={episode.segments.length}
-              estimatedDuration={estimatedDuration}
-              papersCount={papers.length}
-            />
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col items-center p-2 rounded-lg bg-white border border-[#E8E2D5] shadow-2xs">
+                <MessageSquare className="w-3.5 h-3.5 text-[#8A8478] mb-0.5" />
+                <span className="text-xs font-bold text-[#24211D]">{segments.length}</span>
+                <span className="text-[9px] text-[#8A8478] uppercase">Turns</span>
+              </div>
+              <div className="flex flex-col items-center p-2 rounded-lg bg-white border border-[#E8E2D5] shadow-2xs">
+                <Clock className="w-3.5 h-3.5 text-[#8A8478] mb-0.5" />
+                <span className="text-xs font-bold text-[#24211D]">{estimatedDuration}</span>
+                <span className="text-[9px] text-[#8A8478] uppercase">Duration</span>
+              </div>
+              <div className="flex flex-col items-center p-2 rounded-lg bg-white border border-[#E8E2D5] shadow-2xs">
+                <FileText className="w-3.5 h-3.5 text-[#8A8478] mb-0.5" />
+                <span className="text-xs font-bold text-[#24211D]">{papers.length}</span>
+                <span className="text-[9px] text-[#8A8478] uppercase">Papers</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
+
+export default StudioPanel;

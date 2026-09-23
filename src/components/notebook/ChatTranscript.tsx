@@ -9,13 +9,11 @@ import {
   CheckCircle2, 
   Volume2, 
   Play, 
-  Pause, 
   Headphones, 
   MessageSquare, 
   Bot, 
   User,
-  ArrowRight,
-  HelpCircle
+  ArrowRight
 } from "lucide-react";
 import { PodcastSegmentData, MessageData, PaperItem } from "@/types";
 
@@ -98,7 +96,6 @@ export function ChatTranscript({
       recognitionRef.current.stop();
       setIsListening(false);
     } else {
-      // Pause podcast if playing
       if (isPlaying) {
         onPause();
       }
@@ -120,7 +117,6 @@ export function ChatTranscript({
     await onInterrupt(q);
   };
 
-  // Auto-scroll to active segment
   useEffect(() => {
     if (activeSegmentIndex !== null) {
       const el = document.getElementById(`segment-${activeSegmentIndex}`);
@@ -130,7 +126,6 @@ export function ChatTranscript({
     }
   }, [activeSegmentIndex]);
 
-  // Check if last message is an interrupt waiting for confirmation
   const lastMessage = messages[messages.length - 1];
   const isAwaitingConfirmation =
     lastMessage &&
@@ -139,57 +134,59 @@ export function ChatTranscript({
     !lastMessage.resumed;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0d0e12] overflow-hidden relative">
+    <div className="flex-1 flex flex-col h-full bg-[#FAF8F5] overflow-hidden relative">
       {/* Header Tabs */}
-      <div className="px-6 py-3 border-b border-[#22242a] flex items-center justify-between bg-[#121316]">
+      <div className="px-6 py-3.5 border-b border-[#E6E0D5] flex items-center justify-between bg-[#F7F4ED]">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab("PODCAST")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
               activeTab === "PODCAST"
-                ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                : "text-zinc-400 hover:text-zinc-200"
+                ? "bg-white text-[#BA5C38] border border-[#DDD5C5] shadow-xs font-semibold"
+                : "text-[#6B645B] hover:text-[#24211D]"
             }`}
           >
-            <Headphones className="w-3.5 h-3.5 text-indigo-400" />
+            <Headphones className="w-3.5 h-3.5 text-[#BA5C38]" />
             Interactive Podcast Script
           </button>
           <button
             onClick={() => setActiveTab("HISTORY")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
               activeTab === "HISTORY"
-                ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                : "text-zinc-400 hover:text-zinc-200"
+                ? "bg-white text-[#BA5C38] border border-[#DDD5C5] shadow-xs font-semibold"
+                : "text-[#6B645B] hover:text-[#24211D]"
             }`}
           >
-            <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+            <MessageSquare className="w-3.5 h-3.5 text-[#BA5C38]" />
             1-on-1 Q&A History ({messages.length})
           </button>
         </div>
 
         {isPlaying && (
-          <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 animate-pulse">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <div className="flex items-center gap-2 text-xs text-[#2E6B56] bg-[#EDF4F0] border border-[#D1E4DB] px-3 py-1 rounded-full font-medium">
+            <span className="w-2 h-2 rounded-full bg-[#2E6B56] animate-ping"></span>
             Podcast Playing • Click Mic to Interrupt
           </div>
         )}
       </div>
 
       {/* Main Content Area */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#FAF8F5]">
         {activeTab === "PODCAST" ? (
           segments.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-8 text-zinc-500">
-              <Headphones className="w-12 h-12 text-zinc-600 mb-3" />
-              <h3 className="text-sm font-semibold text-zinc-300 mb-1">
+            <div className="h-full flex flex-col items-center justify-center text-center p-8 text-[#8A8478]">
+              <div className="w-14 h-14 rounded-2xl bg-[#F0EBE1] flex items-center justify-center text-[#BA5C38] mb-3 border border-[#E2DDD1]">
+                <Headphones className="w-7 h-7" />
+              </div>
+              <h3 className="text-sm font-semibold text-[#24211D] mb-1">
                 No Podcast Generated Yet
               </h3>
-              <p className="text-xs max-w-sm text-zinc-500 mb-4">
-                Load a paper on the left pane and click "Generate Podcast Episode" in the studio panel to synthesize the Level-3 citation narrative.
+              <p className="text-xs max-w-sm text-[#7A7469] mb-4 leading-relaxed">
+                Add a paper on the left pane and click "Generate Interactive Podcast" in the audio studio to synthesize the Level-3 citation narrative.
               </p>
             </div>
           ) : (
-            <div className="space-y-4 max-w-3xl mx-auto">
+            <div className="space-y-3.5 max-w-3xl mx-auto">
               {segments.map((seg, idx) => {
                 const isActive = activeSegmentIndex === idx;
                 const isAlex = seg.speaker === "Host_Alex";
@@ -201,39 +198,39 @@ export function ChatTranscript({
                     onClick={() => onPlaySegment(idx)}
                     className={`group p-4 rounded-xl transition-all cursor-pointer border ${
                       isActive
-                        ? "bg-indigo-950/40 border-indigo-500/50 shadow-lg shadow-indigo-950/30"
-                        : "bg-[#14161c] border-[#22242e] hover:border-[#323646]"
+                        ? "bg-[#F7EFE6] border-[#D9C4B2] shadow-sm ring-1 ring-[#BA5C38]/20"
+                        : "bg-white border-[#E6E0D5] hover:border-[#D6CEBF] shadow-2xs hover:shadow-xs"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2.5">
                         <div
-                          className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-white shadow-2xs ${
                             isAlex
-                              ? "bg-indigo-600 text-white"
-                              : "bg-emerald-600 text-white"
+                              ? "bg-[#BA5C38]"
+                              : "bg-[#3D6B5A]"
                           }`}
                         >
                           {isAlex ? "A" : "M"}
                         </div>
                         <div>
-                          <span className="text-xs font-semibold text-zinc-200 mr-2">
+                          <span className="text-xs font-semibold text-[#24211D] mr-2">
                             {isAlex ? "Host Alex" : "Host Maya"}
                           </span>
-                          <span className="text-[10px] text-zinc-400 bg-[#1c1e26] px-2 py-0.5 rounded">
+                          <span className="text-[10px] text-[#7A7469] bg-[#F2EDE4] border border-[#E5DFD3] px-2 py-0.5 rounded font-medium">
                             {seg.speakerRole || (isAlex ? "Lead Analyst" : "Investigative Host")}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                      <div className="flex items-center gap-2 text-[11px] text-[#7A7469]">
                         {isActive && isPlaying ? (
-                          <span className="flex items-center gap-1 text-indigo-400 text-xs font-medium">
+                          <span className="flex items-center gap-1.5 text-[#BA5C38] text-xs font-semibold">
                             <Volume2 className="w-3.5 h-3.5 animate-bounce" />
                             Speaking
                           </span>
                         ) : (
-                          <Play className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400" />
+                          <Play className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-[#9E978B]" />
                         )}
                       </div>
                     </div>
@@ -241,8 +238,8 @@ export function ChatTranscript({
                     <p
                       className={`text-xs md:text-sm leading-relaxed ${
                         isActive
-                          ? "text-indigo-100 font-normal"
-                          : "text-zinc-300 group-hover:text-zinc-100"
+                          ? "text-[#1F1D1A] font-medium"
+                          : "text-[#47433D] group-hover:text-[#24211D]"
                       }`}
                     >
                       {seg.text}
@@ -253,9 +250,9 @@ export function ChatTranscript({
 
               {/* Interruption Answer Card if active */}
               {isAnsweringInterrupt && (
-                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-3 text-amber-200 text-xs animate-pulse">
-                  <Bot className="w-5 h-5 text-amber-400" />
-                  <span>The AI host is listening to your question and preparing an explanation...</span>
+                <div className="p-4 bg-[#FBF3E6] border border-[#F2DEBF] rounded-xl flex items-center gap-3 text-[#9E651E] text-xs animate-pulse shadow-xs">
+                  <Bot className="w-5 h-5 text-[#BA5C38]" />
+                  <span className="font-medium">The AI host is listening to your question and formulating an explanation...</span>
                 </div>
               )}
             </div>
@@ -264,7 +261,7 @@ export function ChatTranscript({
           /* 1-on-1 History Tab */
           <div className="space-y-4 max-w-2xl mx-auto">
             {messages.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-500">
+              <div className="p-8 text-center text-xs text-[#8A8478]">
                 No 1-on-1 dialogue recorded yet. Ask a question or interrupt the podcast anytime!
               </div>
             ) : (
@@ -274,7 +271,7 @@ export function ChatTranscript({
 
                 if (isSystem) {
                   return (
-                    <div key={msg.id} className="text-center text-[11px] text-zinc-400 py-1 font-mono">
+                    <div key={msg.id} className="text-center text-[11px] text-[#8A8478] py-1 font-mono">
                       — {msg.content} —
                     </div>
                   );
@@ -288,24 +285,24 @@ export function ChatTranscript({
                     }`}
                   >
                     <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
+                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 text-white shadow-xs ${
                         isUser
-                          ? "bg-indigo-600 text-white"
-                          : "bg-violet-600 text-white"
+                          ? "bg-[#BA5C38]"
+                          : "bg-[#4D4942]"
                       }`}
                     >
                       {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                     </div>
 
                     <div
-                      className={`p-3.5 rounded-2xl max-w-lg text-xs md:text-sm leading-relaxed shadow-sm ${
+                      className={`p-3.5 rounded-2xl max-w-lg text-xs md:text-sm leading-relaxed shadow-xs ${
                         isUser
-                          ? "bg-indigo-600 text-white rounded-tr-none"
-                          : "bg-[#181a22] text-zinc-200 border border-[#272b38] rounded-tl-none"
+                          ? "bg-[#BA5C38] text-white rounded-tr-none font-normal"
+                          : "bg-white text-[#24211D] border border-[#E6E0D5] rounded-tl-none font-normal"
                       }`}
                     >
                       {msg.isInterrupt && (
-                        <div className="text-[10px] text-indigo-300 font-medium mb-1 flex items-center gap-1">
+                        <div className="text-[10px] text-[#BA5C38] font-semibold mb-1 flex items-center gap-1">
                           <Headphones className="w-3 h-3" />
                           Live Podcast Interruption
                         </div>
@@ -322,9 +319,9 @@ export function ChatTranscript({
 
       {/* Confirmation Banner for Interruption */}
       {isAwaitingConfirmation && (
-        <div className="mx-6 mb-3 p-3 bg-indigo-950/80 border border-indigo-500/40 rounded-xl shadow-xl flex items-center justify-between gap-4 backdrop-blur">
-          <div className="flex items-center gap-2 text-xs text-indigo-200">
-            <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
+        <div className="mx-6 mb-3 p-3.5 bg-white border border-[#E2DDD1] rounded-xl shadow-md flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5 text-xs text-[#24211D]">
+            <Sparkles className="w-4 h-4 text-[#BA5C38] shrink-0" />
             <span>
               <strong>Host check:</strong> "Is the answer to your question ok?"
             </span>
@@ -333,7 +330,7 @@ export function ChatTranscript({
           <div className="flex items-center gap-2">
             <button
               onClick={onConfirmResume}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition-all shadow-md active:scale-95"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#2E6B56] hover:bg-[#255746] text-white rounded-lg text-xs font-semibold transition-all shadow-xs active:scale-95 cursor-pointer"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               Yes, Resume Podcast
@@ -343,25 +340,25 @@ export function ChatTranscript({
       )}
 
       {/* Interactive Bottom Prompt Bar */}
-      <div className="p-4 border-t border-[#22242a] bg-[#121316]">
+      <div className="p-4 border-t border-[#E6E0D5] bg-[#F7F4ED]">
         {/* Quick Question Chips */}
         <div className="flex items-center gap-2 mb-2.5 overflow-x-auto pb-1 text-[11px]">
-          <span className="text-zinc-500 text-[10px] shrink-0">Try asking:</span>
+          <span className="text-[#8A8478] text-[10px] shrink-0 font-medium">Try asking:</span>
           <button
             onClick={() => onInterrupt("Why is the level 3 foundational citation significant?")}
-            className="px-2.5 py-1 rounded-full bg-[#1c1e26] hover:bg-[#252834] text-zinc-400 hover:text-zinc-200 border border-[#2b2f3c] transition-colors shrink-0"
+            className="px-2.5 py-1 rounded-full bg-white hover:bg-[#F2ECE1] text-[#524E48] hover:text-[#24211D] border border-[#DDD5C5] transition-colors shrink-0 shadow-2xs font-medium cursor-pointer"
           >
             "Why is Level 3 significant?"
           </button>
           <button
             onClick={() => onInterrupt("Explain the difference between Level 1 and Level 2.")}
-            className="px-2.5 py-1 rounded-full bg-[#1c1e26] hover:bg-[#252834] text-zinc-400 hover:text-zinc-200 border border-[#2b2f3c] transition-colors shrink-0"
+            className="px-2.5 py-1 rounded-full bg-white hover:bg-[#F2ECE1] text-[#524E48] hover:text-[#24211D] border border-[#DDD5C5] transition-colors shrink-0 shadow-2xs font-medium cursor-pointer"
           >
             "Difference between Level 1 & 2"
           </button>
           <button
             onClick={() => onInterrupt("What was the main empirical bottleneck?")}
-            className="px-2.5 py-1 rounded-full bg-[#1c1e26] hover:bg-[#252834] text-zinc-400 hover:text-zinc-200 border border-[#2b2f3c] transition-colors shrink-0"
+            className="px-2.5 py-1 rounded-full bg-white hover:bg-[#F2ECE1] text-[#524E48] hover:text-[#24211D] border border-[#DDD5C5] transition-colors shrink-0 shadow-2xs font-medium cursor-pointer"
           >
             "What was the main bottleneck?"
           </button>
@@ -378,16 +375,16 @@ export function ChatTranscript({
                   ? "Type question or click mic to interrupt the podcast..."
                   : "Ask anything about this research or its citations..."
               }
-              className="w-full pl-4 pr-12 py-2.5 bg-[#181a20] border border-[#292c36] focus:border-indigo-500 rounded-xl text-xs text-zinc-200 placeholder-zinc-500 outline-none transition-all shadow-inner"
+              className="w-full pl-4 pr-12 py-2.5 bg-white border border-[#DDD5C5] focus:border-[#BA5C38] focus:ring-1 focus:ring-[#BA5C38]/20 rounded-xl text-xs text-[#24211D] placeholder-[#9E978B] outline-none transition-all shadow-2xs"
               disabled={isAnsweringInterrupt}
             />
             <button
               type="button"
               onClick={toggleVoiceListen}
-              className={`absolute right-2 top-2 p-1.5 rounded-lg transition-all ${
+              className={`absolute right-2 top-2 p-1.5 rounded-lg transition-all cursor-pointer ${
                 isListening
                   ? "bg-red-500 text-white animate-pulse"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-[#222530]"
+                  : "text-[#7A7469] hover:text-[#24211D] hover:bg-[#EAE4D7]"
               }`}
               title={isListening ? "Listening... click to stop" : "Speak to interrupt podcast"}
             >
@@ -398,7 +395,7 @@ export function ChatTranscript({
           <button
             type="submit"
             disabled={!inputText.trim() || isAnsweringInterrupt}
-            className="p-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-xl transition-all shadow-md shadow-indigo-600/20 active:scale-95"
+            className="p-2.5 bg-[#BA5C38] hover:bg-[#A34B28] disabled:opacity-40 text-white rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer"
           >
             <Send className="w-4 h-4" />
           </button>

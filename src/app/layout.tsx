@@ -16,18 +16,22 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ResearchCast — Paper to Interactive Podcast",
   description:
-    "Transform any research paper into an interactive AI podcast with Level-3 citation depth. Upload, crawl, synthesize, listen, and interrupt.",
+    "Transform research papers into an interactive AI podcast with Level-3 citation depth. Listen, pause, ask questions, and explore knowledge graphs.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="h-full flex bg-[#0a0b10] text-zinc-200 overflow-hidden">
+      <body className="h-full flex bg-[#FAF8F5] text-[#24211D] overflow-hidden antialiased">
         <Sidebar />
-        <main className="flex-1 flex flex-col h-full overflow-hidden">
+        <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#FAF8F5]">
           {children}
         </main>
       </body>
