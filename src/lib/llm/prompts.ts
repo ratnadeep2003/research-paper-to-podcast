@@ -75,10 +75,14 @@ OUTPUT FORMAT: Return ONLY a valid JSON array of objects with the following sche
 ]
 No markdown wrapping, no backticks, just valid JSON.`;
 
-  const rawResponse = await callGemini(
+  const { text: rawResponse, usedFallback, error } = await callGemini(
     `Generate the podcast dialogue for the following research lineage:\n\n${contextDescription}`,
     systemInstruction
   );
+
+  if (usedFallback) {
+    console.warn(`generatePodcastDialogue: falling back to static script. Reason: ${error}`);
+  }
 
   if (rawResponse) {
     try {
@@ -101,7 +105,6 @@ No markdown wrapping, no backticks, just valid JSON.`;
     }
   }
 
-  // Dynamic fallback script based on actual paper graph
   return buildIntelligentFallbackScript(rootPaper, l2Papers, l3Papers);
 }
 
@@ -110,7 +113,7 @@ export async function answerPodcastInterruption(params: {
   currentSegmentText: string;
   currentSpeaker: string;
   papers: PaperSummaryForPrompt[];
-}): Promise<string> {
+}): Promise<{ answer: string; usedFallback: boolean; error?: string }> {
   const { question, currentSegmentText, currentSpeaker, papers } = params;
 
   const rootPaper = papers.find((p) => p.level === 1);
@@ -131,14 +134,26 @@ INSTRUCTIONS:
 3. Conclude your answer by asking: "Is the answer to your question ok?" (or "Does that clarify things for you, or shall we continue?").
 `;
 
-  const response = await callGemini(prompt, "You are an intelligent, friendly scientific podcast host answering a listener's live interruption.");
+  const { text: response, usedFallback, error } = await callGemini(
+    prompt,
+    "You are an intelligent, friendly scientific podcast host answering a listener's live interruption."
+  );
 
-  if (response && response.trim().length > 0) {
-    return response.trim();
+  if (!usedFallback && response.trim().length > 0) {
+    return { answer: response.trim(), usedFallback: false };
   }
 
-  // Fallback response if API key is not yet configured
-  return `That is an insightful question regarding "${question}". In the context of ${rootPaper?.title || "this research"}, the authors specifically address this by balancing foundational constraints from earlier literature with novel optimizations. Is the answer to your question ok?`;
+  console.warn(`answerPodcastInterruption: falling back to static template. Reason: ${error}`);
+
+  // Fallback only fires if Gemini genuinely failed (no key, or retries exhausted) —
+  // still varies by question/paper so it doesn't feel identical every time.
+  const fallbackAnswer = `That's a great question about "${question}". Based on "${
+    rootPaper?.title || "this paper"
+  }", the short answer relates to: ${
+    rootPaper?.keyTakeaway || "the core method discussed in the abstract"
+  }. I'm having trouble reaching the full AI model right now, so this is a limited answer — is that enough to go on, or would you like to try again in a moment?`;
+
+  return { answer: fallbackAnswer, usedFallback: true, error };
 }
 
 function buildIntelligentFallbackScript(

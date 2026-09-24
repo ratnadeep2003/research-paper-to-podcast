@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     });
 
     // 4. Generate AI response with confirmation prompt
-    const answer = await answerPodcastInterruption({
+    const { answer, usedFallback } = await answerPodcastInterruption({
       question,
       currentSegmentText,
       currentSpeaker,
@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       answer,
+      usedFallback, // true = Gemini failed and we used the static/degraded template
       assistantMessageId: assistantMessage.id,
     });
   } catch (error) {

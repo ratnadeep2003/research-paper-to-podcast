@@ -28,7 +28,9 @@ export async function crawlLevel3Citations(options: CrawlOptions) {
   const openAlexRoot = await searchOpenAlexPaper(rootDoi || rootTitle);
   const rootAuthors = openAlexRoot?.authorships?.map((a) => a.author.display_name) || ["Primary Author"];
   const rootYear = openAlexRoot?.publication_year || new Date().getFullYear();
-  const rootAbs = rootAbstract || (openAlexRoot ? reconstructAbstract(openAlexRoot.abstract_inverted_index) : "Paper exploring core conceptual breakthrough.");
+  const rootAbs =
+    rootAbstract ||
+    (openAlexRoot ? reconstructAbstract(openAlexRoot.abstract_inverted_index) : "Paper exploring core conceptual breakthrough.");
 
   // Save or update Root Paper (Level 1)
   const rootRecord = await prisma.paper.create({
@@ -50,64 +52,78 @@ export async function crawlLevel3Citations(options: CrawlOptions) {
 
   const refWorkIds = openAlexRoot?.referenced_works || [];
   let l2Works: OpenAlexWork[] = [];
+  let l2IsFallback = false;
 
   if (refWorkIds.length > 0) {
     l2Works = await fetchOpenAlexReferences(refWorkIds, maxLevel2);
   }
 
-  // Fallback if paper references weren't in OpenAlex (e.g. newly published or custom PDF)
+  // Fallback if paper references weren't in OpenAlex (e.g. newly published, niche journal, or custom PDF)
   if (l2Works.length === 0) {
-    l2Works = generateFallbackL2Works(rootTitle);
+    console.warn(
+      `No OpenAlex citation graph found for "${rootTitle}" — using generic placeholder citations derived from the paper's own content.`
+    );
+    l2Works = generateFallbackL2Works(rootTitle, rootAbs);
+    l2IsFallback = true;
   }
 
   // 2. Process Level 2 Papers (Direct Citations)
   for (const l2 of l2Works) {
     const l2Authors = l2.authorships?.map((a) => a.author.display_name) || ["Contributing Scholar"];
-    const l2Abstract = reconstructAbstract(l2.abstract_inverted_index) || `Foundational predecessor analyzing key mechanics for ${l2.title || 'this domain'}.`;
+    const l2Abstract =
+      reconstructAbstract(l2.abstract_inverted_index) ||
+      `Foundational predecessor analyzing key mechanics for ${l2.title || "this domain"}.`;
 
     const l2Record = await prisma.paper.create({
       data: {
         sessionId,
         title: l2.title || "Foundational Prior Work",
         authors: JSON.stringify(l2Authors),
-        year: l2.publication_year || (rootYear - 2),
+        year: l2.publication_year || rootYear - 2,
         doi: l2.doi || null,
         url: l2.primary_location?.landing_page_url || null,
         abstract: l2Abstract,
         level: 2,
         parentId: rootRecord.id,
-        relevanceScore: 0.85,
-        keyTakeaway: `Direct predecessor establishing the problem context and benchmark baseline that the root paper improves upon.`,
+        relevanceScore: l2IsFallback ? 0.3 : 0.85,
+        keyTakeaway: l2IsFallback
+          ? `Placeholder — no real citation data was found for this paper; treat as illustrative only.`
+          : `Direct predecessor establishing the problem context and benchmark baseline that the root paper improves upon.`,
       },
     });
 
     // 3. Process Level 3 Papers (Citations of Level 2 Citations)
     let l3Works: OpenAlexWork[] = [];
-    if (l2.referenced_works && l2.referenced_works.length > 0) {
+    let l3IsFallback = false;
+    if (!l2IsFallback && l2.referenced_works && l2.referenced_works.length > 0) {
       l3Works = await fetchOpenAlexReferences(l2.referenced_works, maxLevel3PerL2);
     }
 
     if (l3Works.length === 0) {
-      l3Works = generateFallbackL3Works(l2.title || "Predecessor Work");
+      l3Works = generateFallbackL3Works(l2.title || "Predecessor Work", rootTitle);
+      l3IsFallback = true;
     }
 
     for (const l3 of l3Works) {
       const l3Authors = l3.authorships?.map((a) => a.author.display_name) || ["Seminal Pioneer"];
-      const l3Abstract = reconstructAbstract(l3.abstract_inverted_index) || `Seminal paper originating first principles for ${l3.title}.`;
+      const l3Abstract =
+        reconstructAbstract(l3.abstract_inverted_index) || `Seminal paper originating first principles for ${l3.title}.`;
 
       await prisma.paper.create({
         data: {
           sessionId,
           title: l3.title || "Seminal First Principles Paper",
           authors: JSON.stringify(l3Authors),
-          year: l3.publication_year || (rootYear - 5),
+          year: l3.publication_year || rootYear - 5,
           doi: l3.doi || null,
           url: l3.primary_location?.landing_page_url || null,
           abstract: l3Abstract,
           level: 3,
           parentId: l2Record.id,
-          relevanceScore: 0.70,
-          keyTakeaway: `Historical root laying the theoretical foundation and mathematical principles.`,
+          relevanceScore: l3IsFallback ? 0.2 : 0.7,
+          keyTakeaway: l3IsFallback
+            ? `Placeholder — no real citation data was found; treat as illustrative only.`
+            : `Historical root laying the theoretical foundation and mathematical principles.`,
         },
       });
     }
@@ -122,51 +138,43 @@ export async function crawlLevel3Citations(options: CrawlOptions) {
   return allPapers;
 }
 
-function generateFallbackL2Works(rootTitle: string): OpenAlexWork[] {
+/**
+ * Generic, content-neutral placeholders used ONLY when OpenAlex has no real
+ * citation graph for the paper (common for small/niche journals like IJRAR
+ * that aren't fully indexed). These must never reference a specific unrelated
+ * field (e.g. "attention mechanisms", "gradient descent") — that would leak
+ * into the podcast/chat as if it were about the actual paper's domain.
+ */
+function generateFallbackL2Works(rootTitle: string, rootAbstract: string): OpenAlexWork[] {
+  const shortTitle = rootTitle.length > 60 ? rootTitle.slice(0, 60) + "…" : rootTitle;
   return [
     {
       id: "fallback_l2_1",
-      title: `Theoretical Frameworks and Early Architecture for ${rootTitle.slice(0, 30)}`,
-      publication_year: 2021,
-      authorships: [{ author: { display_name: "A. Vaswani" } }, { author: { display_name: "N. Shazeer" } }],
-      cited_by_count: 8500,
-      referenced_works: ["fallback_l3_1", "fallback_l3_2"],
+      title: `Earlier approaches to the problem addressed by "${shortTitle}"`,
+      publication_year: undefined,
+      authorships: [{ author: { display_name: "Related prior work (not resolved via OpenAlex)" } }],
+      cited_by_count: 0,
+      referenced_works: [],
     },
     {
       id: "fallback_l2_2",
-      title: `Empirical Benchmarks and Evaluation Metrics in Contextual Modeling`,
-      publication_year: 2020,
-      authorships: [{ author: { display_name: "J. Devlin" } }, { author: { display_name: "M. Chang" } }],
-      cited_by_count: 6200,
-      referenced_works: ["fallback_l3_3"],
-    },
-    {
-      id: "fallback_l2_3",
-      title: `Neural Representation Learning and Attention Mechanisms`,
-      publication_year: 2019,
-      authorships: [{ author: { display_name: "D. Bahdanau" } }, { author: { display_name: "Y. Bengio" } }],
-      cited_by_count: 14000,
-      referenced_works: ["fallback_l3_4"],
+      title: `Benchmark methods commonly compared against in this paper's field`,
+      publication_year: undefined,
+      authorships: [{ author: { display_name: "Related prior work (not resolved via OpenAlex)" } }],
+      cited_by_count: 0,
+      referenced_works: [],
     },
   ];
 }
 
-function generateFallbackL3Works(l2Title: string): OpenAlexWork[] {
+function generateFallbackL3Works(l2Title: string, rootTitle: string): OpenAlexWork[] {
   return [
     {
-      id: "fallback_l3_seminal",
-      title: `Foundations of Gradient Descent and Optimization in Deep Architectures`,
-      publication_year: 2015,
-      authorships: [{ author: { display_name: "D. Kingma" } }, { author: { display_name: "J. Ba" } }],
-      cited_by_count: 55000,
-      referenced_works: [],
-    },
-    {
-      id: "fallback_l3_roots",
-      title: `Long Short-Term Memory and Recurrent Neural Dynamics`,
-      publication_year: 1997,
-      authorships: [{ author: { display_name: "S. Hochreiter" } }, { author: { display_name: "J. Schmidhuber" } }],
-      cited_by_count: 90000,
+      id: "fallback_l3_1",
+      title: `Foundational concepts underlying "${l2Title}"`,
+      publication_year: undefined,
+      authorships: [{ author: { display_name: "Foundational prior work (not resolved via OpenAlex)" } }],
+      cited_by_count: 0,
       referenced_works: [],
     },
   ];
