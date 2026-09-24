@@ -7,9 +7,37 @@ export interface CrawlOptions {
   rootDoi?: string;
   rootAbstract?: string;
   rootFullText?: string;
-  maxLevel2?: number; // default 5
-  maxLevel3PerL2?: number; // default 2
+  maxLevel2?: number;
+  maxLevel3PerL2?: number;
 }
+
+const STOPWORDS = new Set([
+  "a","an","the","of","for","and","or","in","on","to","with","using","based",
+  "toward","towards","via","by","from","into","study","research","paper",
+]);
+
+function significantWords(title: string): Set<string> {
+  return new Set(
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !STOPWORDS.has(w))
+  );
+}
+
+/** Word-overlap similarity between two titles, 0 (unrelated) to 1 (identical). */
+function titleSimilarity(a: string, b: string): number {
+  const wa = significantWords(a);
+  const wb = significantWords(b);
+  if (wa.size === 0 || wb.size === 0) return 0;
+  let overlap = 0;
+  for (const w of wa) if (wb.has(w)) overlap++;
+  return overlap / Math.max(wa.size, wb.size);
+}
+
+// Below this, treat the OpenAlex "match" as noise, not the actual paper.
+const MIN_TITLE_SIMILARITY = 0.4;
 
 export async function crawlLevel3Citations(options: CrawlOptions) {
   const {
@@ -24,15 +52,25 @@ export async function crawlLevel3Citations(options: CrawlOptions) {
 
   console.log(`Starting Level 3 Citation Crawl for: "${rootTitle}"`);
 
-  // 1. Resolve Root Paper via OpenAlex if possible
-  const openAlexRoot = await searchOpenAlexPaper(rootDoi || rootTitle);
+  // 1. Resolve Root Paper via OpenAlex, but verify it's actually the same paper
+  let openAlexRoot = await searchOpenAlexPaper(rootDoi || rootTitle);
+
+  if (openAlexRoot && !rootDoi) {
+    const sim = titleSimilarity(rootTitle, openAlexRoot.title || "");
+    if (sim < MIN_TITLE_SIMILARITY) {
+      console.warn(
+        `OpenAlex match rejected — "${openAlexRoot.title}" (similarity ${sim.toFixed(2)}) does not match "${rootTitle}". Treating as not found.`
+      );
+      openAlexRoot = null;
+    }
+  }
+
   const rootAuthors = openAlexRoot?.authorships?.map((a) => a.author.display_name) || ["Primary Author"];
   const rootYear = openAlexRoot?.publication_year || new Date().getFullYear();
   const rootAbs =
     rootAbstract ||
     (openAlexRoot ? reconstructAbstract(openAlexRoot.abstract_inverted_index) : "Paper exploring core conceptual breakthrough.");
 
-  // Save or update Root Paper (Level 1)
   const rootRecord = await prisma.paper.create({
     data: {
       sessionId,
@@ -50,6 +88,7 @@ export async function crawlLevel3Citations(options: CrawlOptions) {
     },
   });
 
+  // Only trust OpenAlex's reference graph if we trust the root match itself
   const refWorkIds = openAlexRoot?.referenced_works || [];
   let l2Works: OpenAlexWork[] = [];
   let l2IsFallback = false;
@@ -58,12 +97,11 @@ export async function crawlLevel3Citations(options: CrawlOptions) {
     l2Works = await fetchOpenAlexReferences(refWorkIds, maxLevel2);
   }
 
-  // Fallback if paper references weren't in OpenAlex (e.g. newly published, niche journal, or custom PDF)
   if (l2Works.length === 0) {
     console.warn(
-      `No OpenAlex citation graph found for "${rootTitle}" — using generic placeholder citations derived from the paper's own content.`
+      `No verified OpenAlex citation graph for "${rootTitle}" — using generic placeholder citations.`
     );
-    l2Works = generateFallbackL2Works(rootTitle, rootAbs);
+    l2Works = generateFallbackL2Works(rootTitle);
     l2IsFallback = true;
   }
 
@@ -87,12 +125,12 @@ export async function crawlLevel3Citations(options: CrawlOptions) {
         parentId: rootRecord.id,
         relevanceScore: l2IsFallback ? 0.3 : 0.85,
         keyTakeaway: l2IsFallback
-          ? `Placeholder — no real citation data was found for this paper; treat as illustrative only.`
+          ? `Placeholder — no verified citation data was found for this paper; treat as illustrative only.`
           : `Direct predecessor establishing the problem context and benchmark baseline that the root paper improves upon.`,
       },
     });
 
-    // 3. Process Level 3 Papers (Citations of Level 2 Citations)
+    // 3. Process Level 3 Papers
     let l3Works: OpenAlexWork[] = [];
     let l3IsFallback = false;
     if (!l2IsFallback && l2.referenced_works && l2.referenced_works.length > 0) {
@@ -100,7 +138,7 @@ export async function crawlLevel3Citations(options: CrawlOptions) {
     }
 
     if (l3Works.length === 0) {
-      l3Works = generateFallbackL3Works(l2.title || "Predecessor Work", rootTitle);
+      l3Works = generateFallbackL3Works(l2.title || "Predecessor Work");
       l3IsFallback = true;
     }
 
@@ -122,14 +160,13 @@ export async function crawlLevel3Citations(options: CrawlOptions) {
           parentId: l2Record.id,
           relevanceScore: l3IsFallback ? 0.2 : 0.7,
           keyTakeaway: l3IsFallback
-            ? `Placeholder — no real citation data was found; treat as illustrative only.`
+            ? `Placeholder — no verified citation data was found; treat as illustrative only.`
             : `Historical root laying the theoretical foundation and mathematical principles.`,
         },
       });
     }
   }
 
-  // Return the entire graph
   const allPapers = await prisma.paper.findMany({
     where: { sessionId },
     orderBy: { level: "asc" },
@@ -138,20 +175,12 @@ export async function crawlLevel3Citations(options: CrawlOptions) {
   return allPapers;
 }
 
-/**
- * Generic, content-neutral placeholders used ONLY when OpenAlex has no real
- * citation graph for the paper (common for small/niche journals like IJRAR
- * that aren't fully indexed). These must never reference a specific unrelated
- * field (e.g. "attention mechanisms", "gradient descent") — that would leak
- * into the podcast/chat as if it were about the actual paper's domain.
- */
-function generateFallbackL2Works(rootTitle: string, rootAbstract: string): OpenAlexWork[] {
+function generateFallbackL2Works(rootTitle: string): OpenAlexWork[] {
   const shortTitle = rootTitle.length > 60 ? rootTitle.slice(0, 60) + "…" : rootTitle;
   return [
     {
       id: "fallback_l2_1",
       title: `Earlier approaches to the problem addressed by "${shortTitle}"`,
-      publication_year: undefined,
       authorships: [{ author: { display_name: "Related prior work (not resolved via OpenAlex)" } }],
       cited_by_count: 0,
       referenced_works: [],
@@ -159,7 +188,6 @@ function generateFallbackL2Works(rootTitle: string, rootAbstract: string): OpenA
     {
       id: "fallback_l2_2",
       title: `Benchmark methods commonly compared against in this paper's field`,
-      publication_year: undefined,
       authorships: [{ author: { display_name: "Related prior work (not resolved via OpenAlex)" } }],
       cited_by_count: 0,
       referenced_works: [],
@@ -167,12 +195,11 @@ function generateFallbackL2Works(rootTitle: string, rootAbstract: string): OpenA
   ];
 }
 
-function generateFallbackL3Works(l2Title: string, rootTitle: string): OpenAlexWork[] {
+function generateFallbackL3Works(l2Title: string): OpenAlexWork[] {
   return [
     {
       id: "fallback_l3_1",
       title: `Foundational concepts underlying "${l2Title}"`,
-      publication_year: undefined,
       authorships: [{ author: { display_name: "Foundational prior work (not resolved via OpenAlex)" } }],
       cited_by_count: 0,
       referenced_works: [],

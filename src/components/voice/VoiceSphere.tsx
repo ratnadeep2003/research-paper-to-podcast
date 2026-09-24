@@ -1,16 +1,15 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { 
-  Mic, 
-  MicOff, 
-  Pause, 
-  Play, 
-  X, 
-  CheckCircle2, 
-  Volume2, 
+import {
+  Mic,
+  MicOff,
+  Pause,
+  Play,
+  X,
+  CheckCircle2,
+  Volume2,
   Sparkles,
-  RotateCcw
 } from "lucide-react";
 
 interface VoiceSphereProps {
@@ -40,7 +39,6 @@ export function VoiceSphere({
   const [userSpeech, setUserSpeech] = useState("");
   const [recognition, setRecognition] = useState<any>(null);
 
-  // Initialize Speech Recognition
   useEffect(() => {
     if (typeof window !== "undefined" && isOpen) {
       const SpeechRecognition =
@@ -69,9 +67,7 @@ export function VoiceSphere({
         if (micActive) {
           try {
             recog.start();
-          } catch (e) {
-            // Already started
-          }
+          } catch (e) {}
         }
         setRecognition(recog);
 
@@ -97,9 +93,9 @@ export function VoiceSphere({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-md flex flex-col items-center justify-between p-6 select-none animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-50 bg-[#F2ECDD] backdrop-blur-md flex flex-col items-center justify-between p-6 select-none animate-in fade-in duration-300">
       {/* Top Header */}
-      <div className="w-full max-w-2xl flex items-center justify-between">
+      <div className="w-full max-w-2xl flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-2.5 h-2.5 rounded-full bg-[#BA5C38] animate-ping" />
           <span className="text-xs font-semibold text-[#24211D] tracking-wide uppercase">
@@ -119,65 +115,60 @@ export function VoiceSphere({
         </button>
       </div>
 
-      {/* Center: The Beige/Cream/White Morphing Sphere */}
-      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md my-auto relative">
-        {/* Outer ambient wave halos */}
-        <div 
-          className={`absolute w-72 h-72 rounded-full transition-all duration-1000 ${
-            status === "speaking" 
-              ? "bg-[#EFE8DC]/80 scale-125 animate-pulse" 
-              : "bg-[#F5F0E6]/50 scale-100"
-          }`}
-        />
-        <div 
-          className={`absolute w-60 h-60 rounded-full transition-all duration-700 ${
-            status === "speaking" 
-              ? "bg-[#E8DFD1]/60 scale-115" 
-              : "bg-[#F7F2E8]/60 scale-95"
-          }`}
-        />
-
-        {/* The Core 3D Beige/Cream/White Morphing Sphere (ChatGPT voice mode aesthetic) */}
-        <div className="relative w-44 h-44 flex items-center justify-center">
-          <div 
-            className={`w-full h-full rounded-full transition-all duration-500 shadow-2xl relative overflow-hidden flex items-center justify-center ${
-              status === "speaking"
-                ? "scale-105 shadow-[#D9CDBF]/80"
-                : status === "listening"
-                ? "scale-100 shadow-[#E4DACD]/70"
-                : "scale-95 shadow-[#E8DFD3]/60"
+      {/* Center column: sphere, status, transcript — each in normal flow so nothing overlaps */}
+      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md gap-6 py-4">
+        {/* Sphere + halos, all centered on the same fixed-size box */}
+        <div className="relative w-72 h-72 flex items-center justify-center shrink-0">
+          {/* Ambient halos — centered via inset-0 + m-auto, sized to fit inside this box, never past it */}
+          <div
+            className={`pointer-events-none absolute inset-0 m-auto w-64 h-64 rounded-full blur-xl transition-all duration-1000 ${
+              status === "speaking" ? "bg-[#D9C6A3]/70 scale-110" : "bg-[#E3D2AE]/50 scale-100"
             }`}
-            style={{
-              background: "radial-gradient(circle at 35% 30%, #FFFFFF 0%, #FAF6EE 30%, #EFE8DA 65%, #DFD2BF 100%)",
-              boxShadow: "inset 0 -10px 25px rgba(186, 168, 145, 0.3), inset 0 8px 16px rgba(255, 255, 255, 0.9), 0 20px 40px rgba(160, 140, 115, 0.2)",
-            }}
+          />
+          <div
+            className={`pointer-events-none absolute inset-0 m-auto w-52 h-52 rounded-full blur-lg transition-all duration-700 ${
+              status === "speaking" ? "bg-[#CBB48A]/55 scale-105" : "bg-[#DCC7A0]/55 scale-95"
+            }`}
+          />
+
+          {/* Liquid morphing blob (ChatGPT-voice-mode style motion, cream/beige/white palette) */}
+          <div
+            className={`relative w-40 h-40 flex items-center justify-center transition-transform duration-500 ${
+              status === "speaking" ? "scale-110" : status === "listening" ? "scale-100" : "scale-95"
+            }`}
           >
-            {/* Liquid morphing highlight inside */}
-            <div 
-              className={`w-32 h-32 rounded-full opacity-70 transition-all duration-1000 ${
-                status === "speaking" ? "animate-spin" : ""
-              }`}
+            <div
+              className="absolute inset-0 animate-blob-morph"
               style={{
-                animationDuration: "12s",
-                background: "conic-gradient(from 0deg, #FFFFFF, #F3EBDD, #E2D3BE, #FFFFFF)",
-                filter: "blur(8px)",
+                background:
+                  "radial-gradient(circle at 35% 30%, #FFFFFF 0%, #FAF6EE 35%, #EFE8DA 70%, #DFD2BF 100%)",
+                boxShadow:
+                  "inset 0 -10px 25px rgba(186, 168, 145, 0.3), inset 0 8px 16px rgba(255, 255, 255, 0.9), 0 20px 40px rgba(160, 140, 115, 0.25)",
+              }}
+            />
+            <div
+              className="absolute inset-3 animate-blob-morph-reverse opacity-80"
+              style={{
+                background:
+                  "radial-gradient(circle at 60% 65%, #FFFFFF 0%, #F3EBDD 50%, #E2D3BE 100%)",
+                filter: "blur(2px)",
+                animationDelay: "-4s",
               }}
             />
 
-            {/* Inner fluid core */}
-            <div 
-              className={`absolute w-20 h-20 rounded-full transition-transform duration-300 ${
+            {/* Inner core */}
+            <div
+              className={`absolute w-16 h-16 rounded-full transition-transform duration-300 ${
                 status === "speaking" ? "scale-110" : "scale-90"
               }`}
               style={{
                 background: "radial-gradient(circle at 40% 40%, #FFFFFF, #FAF7F0 60%, #E8DFD3)",
-                boxShadow: "0 4px 15px rgba(190, 170, 145, 0.2)",
+                boxShadow: "0 4px 15px rgba(190, 170, 145, 0.25)",
               }}
             />
 
-            {/* Speaking audio bars indicator inside orb */}
             {status === "speaking" && (
-              <div className="absolute flex items-center gap-1">
+              <div className="absolute flex items-center gap-1 z-10">
                 <span className="w-1 h-3 bg-[#BA5C38] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                 <span className="w-1 h-6 bg-[#BA5C38] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                 <span className="w-1 h-4 bg-[#BA5C38] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
@@ -186,8 +177,8 @@ export function VoiceSphere({
           </div>
         </div>
 
-        {/* Dynamic status pill */}
-        <div className="mt-8 px-4 py-1.5 rounded-full bg-white border border-[#E2DDD1] shadow-2xs text-xs font-semibold text-[#524E48] flex items-center gap-2">
+        {/* Status pill — normal flow, guaranteed below the sphere box, no overlap */}
+        <div className="px-4 py-1.5 rounded-full bg-white border border-[#E2DDD1] shadow-2xs text-xs font-semibold text-[#524E48] flex items-center gap-2 shrink-0">
           {status === "speaking" ? (
             <>
               <Volume2 className="w-3.5 h-3.5 text-[#BA5C38] animate-pulse" />
@@ -201,28 +192,25 @@ export function VoiceSphere({
           ) : status === "awaiting_confirmation" ? (
             <>
               <Sparkles className="w-3.5 h-3.5 text-[#B87A38]" />
-              <span>"Is the answer to your question ok?"</span>
+              <span>Waiting for your go-ahead to continue</span>
             </>
           ) : (
             <span>Ready • Speak anytime</span>
           )}
         </div>
 
-        {/* Live speech transcript preview */}
-        <div className="mt-4 max-w-md text-center px-4">
+        {/* Transcript */}
+        <div className="max-w-md text-center px-4 shrink-0">
           <p className="text-sm font-medium text-[#24211D] leading-relaxed line-clamp-3">
             "{transcriptText}"
           </p>
           {userSpeech && (
-            <p className="text-xs text-[#8A8478] mt-2 italic">
-              You said: "{userSpeech}"
-            </p>
+            <p className="text-xs text-[#8A8478] mt-2 italic">You said: "{userSpeech}"</p>
           )}
         </div>
 
-        {/* Confirmation Quick Action if Host is checking */}
         {status === "awaiting_confirmation" && (
-          <div className="mt-5 flex items-center gap-2 animate-in fade-in zoom-in duration-200">
+          <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-200 shrink-0">
             <button
               onClick={onConfirmResume}
               className="flex items-center gap-2 px-5 py-2.5 bg-[#2E6B56] hover:bg-[#255746] text-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer active:scale-95"
@@ -235,8 +223,7 @@ export function VoiceSphere({
       </div>
 
       {/* Bottom Floating Control Bar */}
-      <div className="flex items-center gap-4 bg-white border border-[#E6E0D5] p-2.5 px-6 rounded-2xl shadow-lg">
-        {/* Mic Mute / Unmute */}
+      <div className="flex items-center gap-4 bg-white border border-[#E6E0D5] p-2.5 px-6 rounded-2xl shadow-lg shrink-0">
         <button
           onClick={toggleMic}
           className={`p-3 rounded-xl transition-all cursor-pointer ${
@@ -249,7 +236,6 @@ export function VoiceSphere({
           {micActive ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
         </button>
 
-        {/* Pause / Resume */}
         <button
           onClick={onTogglePlayPause}
           className="p-3.5 rounded-xl bg-[#BA5C38] hover:bg-[#A34B28] text-white shadow-sm transition-all cursor-pointer active:scale-95"
@@ -258,7 +244,6 @@ export function VoiceSphere({
           {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
         </button>
 
-        {/* Exit voice mode */}
         <button
           onClick={onClose}
           className="p-3 rounded-xl bg-[#FAF6EF] hover:bg-[#F2ECE1] text-[#524E48] hover:text-[#24211D] border border-[#E8DDD0] transition-all cursor-pointer"

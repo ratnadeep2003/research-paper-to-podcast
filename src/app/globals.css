@@ -62,3 +62,21 @@ body {
 .animate-wave-bar {
   animation: waveBar 1.2s ease-in-out infinite;
 }
+
+/* Liquid morphing blob — ChatGPT-voice-mode-style organic motion, driven purely by
+   border-radius + rotation so it reads as a soft moving liquid, not a spinning disc. */
+@keyframes blobMorph {
+  0%   { border-radius: 42% 58% 65% 35% / 45% 45% 55% 55%; transform: rotate(0deg); }
+  25%  { border-radius: 58% 42% 38% 62% / 60% 35% 65% 40%; transform: rotate(8deg); }
+  50%  { border-radius: 65% 35% 42% 58% / 40% 60% 40% 60%; transform: rotate(-6deg); }
+  75%  { border-radius: 38% 62% 58% 42% / 55% 45% 55% 45%; transform: rotate(5deg); }
+  100% { border-radius: 42% 58% 65% 35% / 45% 45% 55% 55%; transform: rotate(0deg); }
+}
+
+.animate-blob-morph {
+  animation: blobMorph 9s ease-in-out infinite;
+}
+
+.animate-blob-morph-reverse {
+  animation: blobMorph 11s ease-in-out infinite reverse;
+}

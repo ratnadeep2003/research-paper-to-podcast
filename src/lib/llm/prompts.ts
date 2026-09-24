@@ -129,14 +129,14 @@ Available context from the 3-level citation tree:
 ${papers.map((p) => `[Level ${p.level}] ${p.title}: ${p.keyTakeaway || p.abstract?.slice(0, 300)}`).join("\n\n")}
 
 INSTRUCTIONS:
-1. Address the listener's question directly, clearly, and conversationally in 2-4 sentences.
-2. Connect your explanation back to the research context.
-3. Conclude your answer by asking: "Is the answer to your question ok?" (or "Does that clarify things for you, or shall we continue?").
+1. Address the listener's question directly and conversationally in 2-4 sentences, using ONLY the context above. If the context doesn't cover the question, say so plainly instead of guessing.
+2. Never open with "Great question", "That's an insightful question", or any stock praise of the question itself — just answer it, the way a person mid-conversation would.
+3. End with a short, natural check-in that a real host would actually say — vary it every time (e.g. "make sense?", "want me to go deeper on that?", "should we keep going?", "anything else on that before we move on?"). Never reuse the same check-in phrase twice in this conversation, and never use the exact phrase "Does that clarify things for you, or shall we continue?".
 `;
 
   const { text: response, usedFallback, error } = await callGemini(
     prompt,
-    "You are an intelligent, friendly scientific podcast host answering a listener's live interruption."
+    "You are an intelligent, friendly scientific podcast host answering a listener's live interruption. Speak naturally and vary your phrasing turn to turn like a real person would — avoid stock talk-show phrases and repeating the same sentence structure."
   );
 
   if (!usedFallback && response.trim().length > 0) {
